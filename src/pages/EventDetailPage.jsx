@@ -405,9 +405,9 @@ export default function EventDetailPage() {
               }}
             >
               <Stack spacing={1}>
-                <Typography sx={{ color: "secondary.main", opacity: 0.9 }}>
+                {/* <Typography sx={{ color: "secondary.main", opacity: 0.9 }}>
                   🎟 Remaining: <b>{remaining}</b>
-                </Typography>
+                </Typography> */}
                 <Typography sx={{ color: "secondary.main", opacity: 0.9 }}>
                   Entry fee: <b>{price}</b>
                 </Typography>
