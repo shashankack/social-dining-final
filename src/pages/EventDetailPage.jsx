@@ -14,22 +14,38 @@ import {
 } from "@mui/material";
 
 /* ---------- Formatting helpers ---------- */
+function parseTs(value) {
+  if (!value) return null;
+  if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(value)) return new Date(value);
+  return new Date(value + "Z");
+}
+
 function formatDateRange(startsAt, endsAt) {
-  if (!startsAt) return "";
-  const optsDate = {
+  const s = parseTs(startsAt);
+  if (!s) return "";
+
+  const e = parseTs(endsAt);
+
+  const dtfDate = new Intl.DateTimeFormat("en-IN", {
     weekday: "short",
     year: "numeric",
     month: "short",
     day: "numeric",
     timeZone: "Asia/Kolkata",
-  };
-  const optsTime = { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" };
-  const s = new Date(startsAt);
-  const e = endsAt ? new Date(endsAt) : null;
-  const date = s.toLocaleDateString("en-IN", optsDate);
-  const time = s.toLocaleTimeString("en-IN", optsTime);
-  const end = e ? e.toLocaleTimeString("en-IN", optsTime) : null;
-  return end ? `${date} • ${time} – ${end} IST` : `${date} • ${time} IST`;
+  });
+  const dtfTime = new Intl.DateTimeFormat("en-IN", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
+
+  const date = dtfDate.format(s);
+  const startTime = dtfTime.format(s);
+  const endTime = e ? dtfTime.format(e) : null;
+
+  return endTime
+    ? `${date} • ${startTime} – ${endTime} IST`
+    : `${date} • ${startTime} IST`;
 }
 
 // Heuristic: INR minor units -> paise
@@ -79,11 +95,20 @@ const MetaRow = ({ label, value, href }) => (
     alignItems="center"
     sx={{ color: "secondary.main", opacity: 0.95, flexWrap: "wrap" }}
   >
-    <Typography component="span" sx={{ fontSize: 13, letterSpacing: 0.6, opacity: 0.8 }}>
+    <Typography
+      component="span"
+      sx={{ fontSize: 13, letterSpacing: 0.6, opacity: 0.8 }}
+    >
       {label}
     </Typography>
     {href ? (
-      <MLink href={href} target="_blank" rel="noreferrer" underline="hover" sx={{ color: "primary.main", fontWeight: 700 }}>
+      <MLink
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        underline="hover"
+        sx={{ color: "primary.main", fontWeight: 700 }}
+      >
         {value}
       </MLink>
     ) : (
@@ -151,7 +176,13 @@ export default function EventDetailPage() {
   if (loading) {
     return (
       <Box sx={{ minHeight: "100vh", bgcolor: "background.default" }}>
-        <Box sx={{ position: "relative", height: { xs: 360, md: 520 }, bgcolor: "#111" }}>
+        <Box
+          sx={{
+            position: "relative",
+            height: { xs: 360, md: 520 },
+            bgcolor: "#111",
+          }}
+        >
           <Skeleton variant="rectangular" width="100%" height="100%" />
         </Box>
         <Box sx={{ maxWidth: 1100, mx: "auto", px: 2, py: 4 }}>
@@ -187,7 +218,8 @@ export default function EventDetailPage() {
           content: '""',
           position: "fixed",
           inset: 0,
-          background: "radial-gradient(40vw 40vw at 8% 12%, rgba(181,87,37,0.20) 0%, rgba(181,87,37,0.08) 40%, rgba(0,0,0,0) 70%)",
+          background:
+            "radial-gradient(40vw 40vw at 8% 12%, rgba(181,87,37,0.20) 0%, rgba(181,87,37,0.08) 40%, rgba(0,0,0,0) 70%)",
           pointerEvents: "none",
           zIndex: 0,
         },
@@ -195,7 +227,8 @@ export default function EventDetailPage() {
           content: '""',
           position: "fixed",
           inset: 0,
-          background: "radial-gradient(60vw 60vw at 100% 100%, rgba(181,87,37,0.22) 0%, rgba(0,0,0,0) 60%)",
+          background:
+            "radial-gradient(60vw 60vw at 100% 100%, rgba(181,87,37,0.22) 0%, rgba(0,0,0,0) 60%)",
           pointerEvents: "none",
           zIndex: 0,
         },
@@ -214,10 +247,19 @@ export default function EventDetailPage() {
         {e.thumbnailUrls?.length || e.galleryUrls?.length ? (
           <picture>
             {/* Mobile first */}
-            {e.thumbnailUrls?.[1] && <source media="(max-width: 600px)" srcSet={e.thumbnailUrls[1]} />}
-            {e.thumbnailUrls?.[0] && <source media="(min-width: 601px)" srcSet={e.thumbnailUrls[0]} />}
+            {e.thumbnailUrls?.[1] && (
+              <source media="(max-width: 600px)" srcSet={e.thumbnailUrls[1]} />
+            )}
+            {e.thumbnailUrls?.[0] && (
+              <source media="(min-width: 601px)" srcSet={e.thumbnailUrls[0]} />
+            )}
             <img
-              src={e.thumbnailUrls?.[0] ?? e.thumbnailUrls?.[1] ?? e.galleryUrls?.[0] ?? undefined}
+              src={
+                e.thumbnailUrls?.[0] ??
+                e.thumbnailUrls?.[1] ??
+                e.galleryUrls?.[0] ??
+                undefined
+              }
               alt={e.title}
               style={{
                 position: "absolute",
@@ -239,7 +281,8 @@ export default function EventDetailPage() {
           sx={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(180deg, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.60) 58%, rgba(0,0,0,0.88) 100%)",
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.40) 0%, rgba(0,0,0,0.60) 58%, rgba(0,0,0,0.88) 100%)",
           }}
         />
 
@@ -257,16 +300,44 @@ export default function EventDetailPage() {
             pb: { xs: 2, md: 4 },
           }}
         >
-          <Stack direction={{ xs: "column", md: "row" }} spacing={3} sx={{ width: "100%", alignItems: { xs: "flex-start", md: "flex-end" } }}>
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={3}
+            sx={{
+              width: "100%",
+              alignItems: { xs: "flex-start", md: "flex-end" },
+            }}
+          >
             {/* Left info */}
             <Stack spacing={1.75} sx={{ flex: 1, minWidth: 0 }}>
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                {e.club?.name && <MetaPill tone="default">{e.club.name}</MetaPill>}
-                <MetaPill tone={soldOut ? "muted" : "accent"}>{e.status}</MetaPill>
-                {typeof e.slotsTotal === "number" && <MetaPill tone={soldOut ? "muted" : "default"}>{`${Math.max(0, remaining)} left`}</MetaPill>}
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                flexWrap="wrap"
+              >
+                {e.club?.name && (
+                  <MetaPill tone="default">{e.club.name}</MetaPill>
+                )}
+                <MetaPill tone={soldOut ? "muted" : "accent"}>
+                  {e.status}
+                </MetaPill>
+                {typeof e.slotsTotal === "number" && (
+                  <MetaPill tone={soldOut ? "muted" : "default"}>{`${Math.max(
+                    0,
+                    remaining
+                  )} left`}</MetaPill>
+                )}
               </Stack>
 
-              <Typography variant="h3" sx={{ color: "secondary.main", fontWeight: 800, lineHeight: 1.05 }}>
+              <Typography
+                variant="h3"
+                sx={{
+                  color: "secondary.main",
+                  fontWeight: 800,
+                  lineHeight: 1.05,
+                }}
+              >
                 {e.title}
               </Typography>
 
@@ -285,7 +356,13 @@ export default function EventDetailPage() {
                 }}
               >
                 <Typography
-                  sx={{ fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", fontSize: 12, opacity: 0.85 }}
+                  sx={{
+                    fontWeight: 800,
+                    letterSpacing: 0.4,
+                    textTransform: "uppercase",
+                    fontSize: 12,
+                    opacity: 0.85,
+                  }}
                 >
                   Date & Time
                 </Typography>
@@ -293,9 +370,25 @@ export default function EventDetailPage() {
               </Box>
 
               {/* Venue / Map */}
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 0.5, color: "secondary.main", opacity: 0.95, flexWrap: "wrap" }}>
+              <Stack
+                direction="row"
+                spacing={2}
+                alignItems="center"
+                sx={{
+                  mt: 0.5,
+                  color: "secondary.main",
+                  opacity: 0.95,
+                  flexWrap: "wrap",
+                }}
+              >
                 {e.venueName && <MetaRow label="Venue" value={e.venueName} />}
-                {e.venueMapUrl && <MetaRow label="Map" value="Open in Maps" href={e.venueMapUrl} />}
+                {e.venueMapUrl && (
+                  <MetaRow
+                    label="Map"
+                    value="Open in Maps"
+                    href={e.venueMapUrl}
+                  />
+                )}
               </Stack>
             </Stack>
 
@@ -320,7 +413,12 @@ export default function EventDetailPage() {
                 </Typography>
 
                 {!soldOut ? (
-                  <BookButton eventId={e.id} onSuccess={() => alert("We’ll email you once payment is confirmed.")} />
+                  <BookButton
+                    eventId={e.id}
+                    onSuccess={() =>
+                      alert("We’ll email you once payment is confirmed.")
+                    }
+                  />
                 ) : (
                   <Typography color="secondary.main" sx={{ opacity: 0.7 }}>
                     Booking closed or sold out.
@@ -337,7 +435,10 @@ export default function EventDetailPage() {
         {/* About (from .event_desc / .event_description) */}
         {descHTML && (
           <>
-            <Typography variant="h6" sx={{ color: "secondary.main", fontWeight: 700, mb: 1 }}>
+            <Typography
+              variant="h6"
+              sx={{ color: "secondary.main", fontWeight: 700, mb: 1 }}
+            >
               About this event
             </Typography>
             <Box
@@ -353,7 +454,9 @@ export default function EventDetailPage() {
                 "& ul, & ol": { paddingLeft: "1.2rem", margin: "6px 0 12px" },
               }}
               // re-wrap the HTML inside a container with class to reuse styles
-              dangerouslySetInnerHTML={{ __html: `<div class="event_desc">${descHTML}</div>` }}
+              dangerouslySetInnerHTML={{
+                __html: `<div class="event_desc">${descHTML}</div>`,
+              }}
             />
           </>
         )}
@@ -362,7 +465,10 @@ export default function EventDetailPage() {
         {detailsHTML && (
           <>
             <Divider sx={{ my: 4, borderColor: "rgba(181,87,37,0.35)" }} />
-            <Typography variant="h6" sx={{ color: "secondary.main", fontWeight: 700, mb: 1 }}>
+            <Typography
+              variant="h6"
+              sx={{ color: "secondary.main", fontWeight: 700, mb: 1 }}
+            >
               Event details
             </Typography>
             <Box
@@ -399,7 +505,9 @@ export default function EventDetailPage() {
                 },
                 "& tr:last-child td": { borderBottom: "none" },
               }}
-              dangerouslySetInnerHTML={{ __html: `<div class="event_details">${detailsHTML}</div>` }}
+              dangerouslySetInnerHTML={{
+                __html: `<div class="event_details">${detailsHTML}</div>`,
+              }}
             />
           </>
         )}
@@ -408,28 +516,33 @@ export default function EventDetailPage() {
         {e.galleryUrls?.length ? (
           <>
             <Divider sx={{ my: 4, borderColor: "rgba(181,87,37,0.35)" }} />
-            <Typography variant="h6" sx={{ color: "secondary.main", mb: 2, fontWeight: 700 }}>
+            <Typography
+              variant="h6"
+              sx={{ color: "secondary.main", mb: 2, fontWeight: 700 }}
+            >
               Gallery
             </Typography>
-            <Stack direction="row" spacing={2} sx={{ overflowX: "auto", pb: 1 }}>
-              {(e.galleryUrls || [])
-                .filter(Boolean)
-                .map((src, i) => (
-                  <Box
-                    key={`${src}-${i}`}
-                    component="img"
-                    src={src}
-                    alt={`gallery-${i}`}
-                    sx={{
-                      width: { xs: 260, md: 320 },
-                      height: { xs: 160, md: 200 },
-                      objectFit: "cover",
-                      borderRadius: 2,
-                      border: "1px solid rgba(181,87,37,0.35)",
-                      flex: "0 0 auto",
-                    }}
-                  />
-                ))}
+            <Stack
+              direction="row"
+              spacing={2}
+              sx={{ overflowX: "auto", pb: 1 }}
+            >
+              {(e.galleryUrls || []).filter(Boolean).map((src, i) => (
+                <Box
+                  key={`${src}-${i}`}
+                  component="img"
+                  src={src}
+                  alt={`gallery-${i}`}
+                  sx={{
+                    width: { xs: 260, md: 320 },
+                    height: { xs: 160, md: 200 },
+                    objectFit: "cover",
+                    borderRadius: 2,
+                    border: "1px solid rgba(181,87,37,0.35)",
+                    flex: "0 0 auto",
+                  }}
+                />
+              ))}
             </Stack>
           </>
         ) : null}
@@ -438,7 +551,10 @@ export default function EventDetailPage() {
         {e.club?.name && (
           <>
             <Divider sx={{ my: 4, borderColor: "rgba(181,87,37,0.35)" }} />
-            <Typography variant="h6" sx={{ color: "secondary.main", fontWeight: 700 }}>
+            <Typography
+              variant="h6"
+              sx={{ color: "secondary.main", fontWeight: 700 }}
+            >
               About the Club
             </Typography>
             <Typography sx={{ color: "secondary.main", opacity: 0.85, mt: 1 }}>
