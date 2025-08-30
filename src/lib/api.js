@@ -1,13 +1,7 @@
 import axios from "axios";
 
-// --- Resolve base URL robustly ---
-function resolveApiBase() {
-  const raw = import.meta.env?.VITE_API_BASE;
-  if (!raw || raw === "undefined")
-    return "https://events-manager.shashank181204.workers.dev";
-  return raw;
-}
-export const API_BASE = resolveApiBase().replace(/\/+$/, "");
+export const API_BASE = "https://events-manager.shashank181204.workers.dev";
+// export const API_BASE = "http://localhost:8787";
 
 // --- Token management ---
 let accessToken = localStorage.getItem("accessToken") || null;

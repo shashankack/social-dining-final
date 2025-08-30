@@ -16,6 +16,7 @@ const ClubsPage = lazy(() =>
 const ClubDetailPage = lazy(() =>
   import("./pages/ClubsPage").then((m) => ({ default: m.ClubDetailPage }))
 );
+const ThankYouPage = lazy(() => import("./pages/ThankYouPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 
 export default function App() {
@@ -31,23 +32,10 @@ export default function App() {
         <Navbar />
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route
-            path="/events/:slug"
-            element={
-              <RequireAuth>
-                <EventDetailPage />
-              </RequireAuth>
-            }
-          />
+          <Route path="/events/:slug" element={<EventDetailPage />} />
           <Route path="/clubs/:id" element={<ClubDetailPage />} />
-          <Route
-            path="/account"
-            element={
-              <RequireAuth>
-                <AccountPage />
-              </RequireAuth>
-            }
-          />
+          <Route path="/thank-you" element={<ThankYouPage />} />
+          {/* <Route path="/account" element={<AccountPage />} /> */}
         </Routes>
       </Suspense>
     </>

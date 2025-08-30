@@ -19,6 +19,9 @@ const CACHE_TTL_MS = 350_000; // 5 min
 const REVALIDATE_ON_FOCUS = true;
 const REVALIDATE_INTERVAL_MS = 0; // set e.g. 120_000 for 2 min polling, or keep 0 to disable
 
+// const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
+const USE_GUEST_FLOW = "1";
+
 const OFFSETS = [
   { left: "22%", rotate: -10, z: 1 },
   { left: "38%", rotate: 0, z: 2 },
@@ -163,9 +166,13 @@ export default function EventsSection({ limit = 9 }) {
       }),
     [events]
   );
-
   const handleEventClick = (ev) => {
     const target = `/events/${ev.slug || ev.id}`;
+    if (USE_GUEST_FLOW) {
+      navigate(target);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
     if (user) {
       navigate(target);
     } else if (openAuth) {

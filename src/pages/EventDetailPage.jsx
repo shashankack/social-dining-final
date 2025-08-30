@@ -12,6 +12,10 @@ import {
   Skeleton,
   Paper,
 } from "@mui/material";
+import BookButtonGuest from "../components/BookButtonGuest";
+
+// const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
+const USE_GUEST_FLOW = "1";
 
 /* ---------- Formatting helpers ---------- */
 function parseTs(value) {
@@ -413,12 +417,21 @@ export default function EventDetailPage() {
                 </Typography>
 
                 {!soldOut ? (
-                  <BookButton
-                    eventId={e.id}
-                    onSuccess={() =>
-                      alert("We’ll email you once payment is confirmed.")
-                    }
-                  />
+                  USE_GUEST_FLOW ? (
+                    <BookButtonGuest
+                      eventId={e.id}
+                      eventTitle={e.title}
+                      unitPriceMinor={e.registrationFeeMinor}
+                      defaultQty={1}
+                    />
+                  ) : (
+                    <BookButton
+                      eventId={e.id}
+                      onSuccess={() =>
+                        alert("We’ll email you once payment is confirmed.")
+                      }
+                    />
+                  )
                 ) : (
                   <Typography color="secondary.main" sx={{ opacity: 0.7 }}>
                     Booking closed or sold out.

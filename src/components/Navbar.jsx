@@ -1,3 +1,4 @@
+// src/components/Navbar.jsx
 import React, { useState } from "react";
 import {
   AppBar,
@@ -19,6 +20,9 @@ import { useTheme } from "@mui/material/styles";
 import { useNavigate, useLocation, Link as RouterLink } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { useAuthDialog } from "./AuthDialogProvider";
+
+// const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
+const USE_GUEST_FLOW = "1";
 
 export default function Navbar() {
   const theme = useTheme();
@@ -89,87 +93,99 @@ export default function Navbar() {
     },
   ];
 
-  const underlineSx = {
-    position: "relative",
-    "&::after": {
-      content: '""',
-      position: "absolute",
-      left: 8,
-      right: 8,
-      bottom: 6,
-      height: 2,
-      borderRadius: 1,
-      bgcolor: "primary.main",
-      transform: "scaleX(0)",
-      transformOrigin: "left",
-      transition: "transform 200ms ease",
-      opacity: 0.9,
-    },
-    "&:hover::after": {
-      transform: "scaleX(1)",
-    },
-  };
+  const RightButtons = () => {
+    if (USE_GUEST_FLOW) {
+      // Guest mode: one primary CTA to jump to Events
+      return (
+        <Button
+          variant="contained"
+          sx={{
+            ml: 1,
+            textTransform: "none",
+            bgcolor: "primary.main",
+            color: "#000",
+            fontWeight: 700,
+            "&:hover": { bgcolor: "primary.main", filter: "brightness(1.1)" },
+          }}
+          onClick={() => {
+            if (onHome) {
+              const el = document.getElementById("events");
+              el ? el.scrollIntoView({ behavior: "smooth" }) : navigate("/");
+            } else {
+              navigate("/?scrollTo=events");
+            }
+          }}
+        >
+          Book an event
+        </Button>
+      );
+    }
 
-  const RightButtons = () => (
-    <>
-      {user ? (
-        <>
-          <Button
-            color="inherit"
-            component={RouterLink}
-            to="/account"
-            sx={{ textTransform: "none", fontWeight: 500, opacity: 0.9 }}
-          >
-            My Account
-          </Button>
-          <Button
-            onClick={() => {
-              signout?.();
-              navigate("/");
-            }}
-            variant="outlined"
-            sx={{
-              ml: 1,
-              textTransform: "none",
-              borderColor: "primary.main",
-              color: "secondary.main",
-              "&:hover": {
+    // Original auth UI
+    return (
+      <>
+        {user ? (
+          <>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to="/account"
+              sx={{ textTransform: "none", fontWeight: 500, opacity: 0.9 }}
+            >
+              My Account
+            </Button>
+            <Button
+              onClick={() => {
+                signout?.();
+                navigate("/");
+              }}
+              variant="outlined"
+              sx={{
+                ml: 1,
+                textTransform: "none",
                 borderColor: "primary.main",
+                color: "secondary.main",
+                "&:hover": {
+                  borderColor: "primary.main",
+                  bgcolor: "primary.main",
+                  color: "#000",
+                },
+              }}
+            >
+              Sign out
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              color="inherit"
+              onClick={() => openAuth?.({ mode: "signin" })}
+              sx={{ textTransform: "none", fontWeight: 500, opacity: 0.9 }}
+            >
+              Sign in
+            </Button>
+            <Button
+              variant="contained"
+              sx={{
+                ml: 1,
+                textTransform: "none",
                 bgcolor: "primary.main",
                 color: "#000",
-              },
-            }}
-          >
-            Sign out
-          </Button>
-        </>
-      ) : (
-        <>
-          <Button
-            color="inherit"
-            onClick={() => openAuth?.({ mode: "signin" })}
-            sx={{ textTransform: "none", fontWeight: 500, opacity: 0.9 }}
-          >
-            Sign in
-          </Button>
-          <Button
-            variant="contained"
-            sx={{
-              ml: 1,
-              textTransform: "none",
-              bgcolor: "primary.main",
-              color: "#000",
-              fontWeight: 700,
-              "&:hover": { bgcolor: "primary.main", filter: "brightness(1.1)" },
-            }}
-            onClick={() => openAuth?.({ mode: "signup" })}
-          >
-            Sign up
-          </Button>
-        </>
-      )}
-    </>
-  );
+                fontWeight: 700,
+                "&:hover": {
+                  bgcolor: "primary.main",
+                  filter: "brightness(1.1)",
+                },
+              }}
+              onClick={() => openAuth?.({ mode: "signup" })}
+            >
+              Sign up
+            </Button>
+          </>
+        )}
+      </>
+    );
+  };
 
   return (
     <>
@@ -178,7 +194,7 @@ export default function Navbar() {
         color="transparent"
         elevation={0}
         sx={{
-          zIndex: 5, // don't touch
+          zIndex: 5,
           backdropFilter: "blur(14px) saturate(150%)",
           background: scrolled
             ? "linear-gradient(180deg, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.78) 100%)"
@@ -273,7 +289,6 @@ export default function Navbar() {
       </AppBar>
 
       {/* Drawer */}
-      {/* Drawer */}
       <Drawer
         anchor="right"
         open={open}
@@ -281,12 +296,12 @@ export default function Navbar() {
         PaperProps={{
           sx: {
             width: 350,
-            bgcolor: "#0d0d0d", // ✅ keep dark background
+            bgcolor: "#0d0d0d",
             borderLeft: "1px solid rgba(181, 87, 37, 0)",
             backgroundImage:
               "linear-gradient(160deg, rgba(181,87,37,0.08) 0%, transparent 100%)",
             boxShadow: "-4px 0 12px rgba(0,0,0,0.6)",
-            color: "secondary.main", // ✅ make all text light
+            color: "secondary.main",
           },
         }}
       >
@@ -315,7 +330,7 @@ export default function Navbar() {
                 sx={{
                   borderRadius: 2,
                   mb: 0.5,
-                  color: "secondary.main", // ✅ light text
+                  color: "secondary.main",
                   "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
                 }}
               >
@@ -324,14 +339,34 @@ export default function Navbar() {
                   primaryTypographyProps={{
                     fontWeight: it.active ? 700 : 500,
                     letterSpacing: 0.2,
-                    color: "secondary.main", // ✅ force light
+                    color: "secondary.main",
                   }}
                 />
               </ListItemButton>
             ))}
 
             <Box sx={{ mt: 1.5, px: 1 }}>
-              {user ? (
+              {USE_GUEST_FLOW ? (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="primary"
+                  sx={{ textTransform: "none", borderRadius: 2, color: "#000" }}
+                  onClick={() => {
+                    setOpen(false);
+                    if (onHome) {
+                      const el = document.getElementById("events");
+                      el
+                        ? el.scrollIntoView({ behavior: "smooth" })
+                        : navigate("/");
+                    } else {
+                      navigate("/?scrollTo=events");
+                    }
+                  }}
+                >
+                  Book an event
+                </Button>
+              ) : user ? (
                 <>
                   <Button
                     fullWidth
@@ -340,7 +375,7 @@ export default function Navbar() {
                       textTransform: "none",
                       borderRadius: 2,
                       bgcolor: "rgba(255,255,255,0.06)",
-                      color: "secondary.main", // ✅ light
+                      color: "secondary.main",
                       "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
                     }}
                     onClick={() => {
@@ -357,9 +392,7 @@ export default function Navbar() {
                     sx={{
                       textTransform: "none",
                       borderRadius: 2,
-                      color: "#000", // keep readable on primary
-                      fontWeight: 700,
-                      "&:hover": { filter: "brightness(1.1)" },
+                      color: "#000",
                     }}
                     onClick={() => {
                       signout?.();
@@ -379,7 +412,7 @@ export default function Navbar() {
                       textTransform: "none",
                       borderRadius: 2,
                       bgcolor: "rgba(255,255,255,0.06)",
-                      color: "secondary.main", // ✅ light
+                      color: "secondary.main",
                       "&:hover": { bgcolor: "rgba(255,255,255,0.1)" },
                     }}
                     onClick={() => {
@@ -392,13 +425,11 @@ export default function Navbar() {
                   <Button
                     fullWidth
                     variant="contained"
+                    color="primary"
                     sx={{
                       textTransform: "none",
                       borderRadius: 2,
-                      bgcolor: "primary.main",
                       color: "#000",
-                      fontWeight: 700,
-                      "&:hover": { filter: "brightness(1.1)" },
                     }}
                     onClick={() => {
                       openAuth?.({ mode: "signup" });
