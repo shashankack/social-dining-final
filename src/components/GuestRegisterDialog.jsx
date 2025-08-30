@@ -116,6 +116,7 @@ export default function GuestRegisterDialog({
             onChange={(e) => setEmail(e.target.value)}
             disabled={busy}
             required
+            helperText="We’ll send your booking confirmation to this address."
           />
           <TextField
             label="Phone"

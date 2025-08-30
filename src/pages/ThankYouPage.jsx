@@ -135,6 +135,13 @@ export default function ThankYouPage() {
               A confirmation email will be sent to <b>{email}</b> with your
               booking details.
             </Alert>
+            <Alert
+              icon={<EmailRoundedIcon fontSize="small" />}
+              severity="success"
+              sx={{ borderRadius: 2 }}
+            >
+              We’ve emailed your booking confirmation to <b>{email}</b>.
+            </Alert>
 
             <Paper
               variant="outlined"

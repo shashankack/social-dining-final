@@ -437,6 +437,20 @@ export default function EventDetailPage() {
                     Booking closed or sold out.
                   </Typography>
                 )}
+                {USE_GUEST_FLOW && !soldOut && (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "secondary.main",
+                      opacity: 0.8,
+                      mt: 0.5,
+                      display: "block",
+                    }}
+                  >
+                    Tip: enter the email you’d like us to send your confirmation
+                    to.
+                  </Typography>
+                )}
               </Stack>
             </Paper>
           </Stack>
