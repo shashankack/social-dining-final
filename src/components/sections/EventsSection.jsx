@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, useTheme, useMediaQuery } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { api, apiFetch } from "../../lib/api"; // api used for optional HEAD ping; apiFetch for JSON
+import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { useAuthDialog } from "../../components/AuthDialogProvider";
 import dot from "/images/dot.svg";
@@ -13,11 +13,6 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import "swiper/css";
 import "swiper/css/effect-cards";
 import { EffectCards } from "swiper/modules";
-
-const CACHE_KEY = "events_cache_v1";
-const CACHE_TTL_MS = 350_000; // 5 min
-const REVALIDATE_ON_FOCUS = true;
-const REVALIDATE_INTERVAL_MS = 0; // set e.g. 120_000 for 2 min polling, or keep 0 to disable
 
 // const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
 const USE_GUEST_FLOW = "1";
@@ -45,99 +40,34 @@ export default function EventsSection({ limit = 9 }) {
   const ctrlRef = useRef(null);
   const mountedRef = useRef(false);
 
-  // Small helpers
-  const now = () => Date.now();
-  const readCache = () => {
-    try {
-      const raw = sessionStorage.getItem(CACHE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Array.isArray(parsed.items)) return null;
-      return parsed; // { items, ts }
-    } catch {
-      return null;
-    }
-  };
-  const writeCache = (items) => {
-    try {
-      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ items, ts: now() }));
-    } catch {}
-  };
-  const isStale = (ts) => !ts || now() - ts > CACHE_TTL_MS;
-  const shallowEqualStr = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-
-  // Revalidate from network
-  const fetchEvents = async ({ signal, silent = false } = {}) => {
+  // Fetch fresh every mount
+  const fetchEvents = async ({ signal } = {}) => {
     const url = `/events?onlyAvailable=true&includeClub=true&sort=startsAtAsc&limit=${limit}`;
-
     try {
-      const res = await apiFetch(url, { signal });
+      const res = await apiFetch(url, {
+        signal,
+        headers: {
+          // keep the API fresh while you build; you can remove later if you add server-side ETags
+          "Cache-Control": "no-store",
+        },
+      });
       const items = Array.isArray(res?.items) ? res.items : [];
-
-      // Only update state/cache if changed
-      const cached = readCache();
-      if (!cached || !shallowEqualStr(cached.items, items)) {
-        writeCache(items);
-        if (mountedRef.current) setEvents(items);
-      }
+      if (mountedRef.current) setEvents(items);
     } catch (e) {
-      // network error? keep cached view
-      if (!silent) {
-        // console.warn("Events fetch failed", e);
-      }
+      if (mountedRef.current) setEvents([]);
     } finally {
-      if (mountedRef.current && !silent) setLoading(false);
+      if (mountedRef.current) setLoading(false);
     }
   };
 
-  // Bootstrap: show cache immediately (if exists), then revalidate in background
   useEffect(() => {
     mountedRef.current = true;
-    // abort controller for fetches
     ctrlRef.current = new AbortController();
-
-    const cached = readCache();
-    if (cached?.items?.length) {
-      setEvents(cached.items);
-      setLoading(false);
-
-      // only revalidate if stale
-      if (isStale(cached.ts)) {
-        fetchEvents({ signal: ctrlRef.current.signal, silent: true }).finally(
-          () => {}
-        );
-      }
-    } else {
-      // no cache → load from network
-      fetchEvents({ signal: ctrlRef.current.signal, silent: false }).finally(
-        () => {}
-      );
-    }
-
-    // revalidate on focus (optional)
-    const onFocus = () => {
-      if (!REVALIDATE_ON_FOCUS) return;
-      const c = readCache();
-      if (!c || isStale(c.ts)) {
-        fetchEvents({ signal: ctrlRef.current.signal, silent: true });
-      }
-    };
-    window.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("focus", onFocus);
-
-    // interval polling (optional)
-    let intervalId = null;
-    if (REVALIDATE_INTERVAL_MS > 0) {
-      intervalId = setInterval(() => {
-        fetchEvents({ signal: ctrlRef.current.signal, silent: true });
-      }, REVALIDATE_INTERVAL_MS);
-    }
+    setLoading(true);
+    fetchEvents({ signal: ctrlRef.current.signal });
 
     return () => {
       mountedRef.current = false;
-      window.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("focus", onFocus);
-      if (intervalId) clearInterval(intervalId);
       try {
         ctrlRef.current?.abort();
       } catch {}
@@ -147,7 +77,7 @@ export default function EventsSection({ limit = 9 }) {
   // Normalize for rendering (use thumbnailUrls[1] first, then [0], then galleryUrls[0])
   const normalized = useMemo(
     () =>
-      events.map((e) => {
+      (events || []).map((e) => {
         const thumb =
           (Array.isArray(e.thumbnailUrls) &&
             (e.thumbnailUrls[1] || e.thumbnailUrls[0])) ||
@@ -166,6 +96,7 @@ export default function EventsSection({ limit = 9 }) {
       }),
     [events]
   );
+
   const handleEventClick = (ev) => {
     const target = `/events/${ev.slug || ev.id}`;
     if (USE_GUEST_FLOW) {
@@ -221,6 +152,28 @@ export default function EventsSection({ limit = 9 }) {
         : { type: "spring", stiffness: 260, damping: 22, duration: 0.6 },
     }),
   };
+
+  // Simple empty state UI
+  const EmptyState = () => (
+    <Box
+      sx={{
+        color: "secondary.main",
+        textAlign: "center",
+        border: "1px dashed rgba(181,87,37,0.45)",
+        borderRadius: 2,
+        p: 4,
+        width: isMobile ? "85%" : 520,
+        mx: "auto",
+      }}
+    >
+      <Typography sx={{ fontWeight: 800, mb: 1 }}>
+        No upcoming events
+      </Typography>
+      <Typography variant="body2" sx={{ opacity: 0.85 }}>
+        All caught up for now. Check back later.
+      </Typography>
+    </Box>
+  );
 
   return (
     <Box
@@ -306,81 +259,57 @@ export default function EventsSection({ limit = 9 }) {
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.5 }}
         >
-          <Box
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            mb={2}
-            sx={{
-              color: "#B55725",
-              fontWeight: 600,
-              fontSize: "4vw",
-              gap: 1.2,
-            }}
-          >
-            <Typography fontSize="4vw" fontWeight={600}>
-              Swipe to explore
-            </Typography>
-            <Box
-              component="svg"
-              viewBox="0 0 50 24"
-              sx={{
-                width: "6vw",
-                height: "auto",
-                fill: "none",
-                stroke: "#B55725",
-                strokeWidth: 2,
-              }}
+          {/* If no events after load, show empty state instead of an empty swiper */}
+          {!loading && normalized.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <Swiper
+              effect="cards"
+              grabCursor
+              modules={[EffectCards]}
+              style={{ maxWidth: "85%", padding: "2vw 0" }}
             >
-              <path d="M0 12h44" />
-              <path d="M38 6l6 6-6 6" />
-            </Box>
-          </Box>
-
-          <Swiper
-            effect="cards"
-            grabCursor
-            modules={[EffectCards]}
-            style={{ maxWidth: "85%", padding: "2vw 0" }}
-          >
-            {(loading ? Array.from({ length: 3 }) : normalized).map(
-              (ev, idx) => (
-                <SwiperSlide key={ev?.id || idx}>
-                  <Box
-                    onClick={() => ev && handleEventClick(ev)}
-                    sx={{
-                      width: "100%",
-                      height: "60vh",
-                      borderRadius: 2,
-                      overflow: "hidden",
-                      border: "3px solid #B55725",
-                      boxShadow: 4,
-                      cursor: ev ? "pointer" : "default",
-                      backgroundColor: "#111",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    {ev?.img ? (
-                      <Box
-                        component="img"
-                        src={ev.img}
-                        alt={ev.title}
-                        sx={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : (
-                      <Box sx={{ color: "#666" }}>Loading…</Box>
-                    )}
-                  </Box>
-                </SwiperSlide>
-              )
-            )}
-          </Swiper>
+              {(loading ? Array.from({ length: 3 }) : normalized).map(
+                (ev, idx) => (
+                  <SwiperSlide key={ev?.id || idx}>
+                    <Box
+                      onClick={() => ev && handleEventClick(ev)}
+                      sx={{
+                        width: "100%",
+                        height: "60vh",
+                        borderRadius: 2,
+                        overflow: "hidden",
+                        border: "3px solid #B55725",
+                        boxShadow: 4,
+                        cursor: ev ? "pointer" : "default",
+                        backgroundColor: "#111",
+                        display: "flex",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      {ev?.img ? (
+                        <Box
+                          component="img"
+                          src={ev.img}
+                          alt={ev.title}
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <Box sx={{ color: "#666" }}>
+                          {loading ? "Loading…" : "No image"}
+                        </Box>
+                      )}
+                    </Box>
+                  </SwiperSlide>
+                )
+              )}
+            </Swiper>
+          )}
         </Box>
       ) : (
         <Box
@@ -406,8 +335,30 @@ export default function EventsSection({ limit = 9 }) {
               alignItems: "center",
             }}
           >
-            {(loading ? Array.from({ length: 3 }) : normalized.slice(0, 3)).map(
-              (ev, i) => {
+            {/* Desktop empty state */}
+            {!loading && normalized.length === 0 ? (
+              <Box
+                sx={{
+                  color: "secondary.main",
+                  textAlign: "center",
+                  border: "1px dashed rgba(181,87,37,0.45)",
+                  borderRadius: 2,
+                  p: 4,
+                  width: 520,
+                }}
+              >
+                <Typography sx={{ fontWeight: 800, mb: 1 }}>
+                  No upcoming events
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                  All caught up for now. Check back later.
+                </Typography>
+              </Box>
+            ) : (
+              (loading
+                ? Array.from({ length: 3 })
+                : normalized.slice(0, 3)
+              ).map((ev, i) => {
                 const img = ev?.img;
                 return (
                   <Box
@@ -442,7 +393,7 @@ export default function EventsSection({ limit = 9 }) {
                     }}
                   />
                 );
-              }
+              })
             )}
           </Box>
         </Box>
