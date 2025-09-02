@@ -1,7 +1,8 @@
 import axios from "axios";
 
-export const API_BASE = "https://events-manager.shashank181204.workers.dev";
+// export const API_BASE = "https://events-manager.shashank181204.workers.dev";
 // export const API_BASE = "http://localhost:8787";
+export const API_BASE = import.meta.env.VITE_API_BASE;
 
 // --- Token management ---
 let accessToken = localStorage.getItem("accessToken") || null;

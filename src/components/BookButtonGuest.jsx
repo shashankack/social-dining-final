@@ -42,7 +42,9 @@ export default function BookButtonGuest({
       <Tooltip title={undefined}>
         <span style={{ width: "100%" }}>{buttonEl}</span>
       </Tooltip>
+
       {msg && <Alert severity={msg.type}>{msg.text}</Alert>}
+
       <Alert
         severity="info"
         variant="outlined"
@@ -50,7 +52,7 @@ export default function BookButtonGuest({
       >
         You’ll receive a booking confirmation email after payment.
       </Alert>
-      {msg && <Alert severity={msg.type}>{msg.text}</Alert>}
+
       <GuestRegisterDialog
         open={open}
         onClose={() => setOpen(false)}

@@ -49,28 +49,31 @@ export default function GuestRegisterDialog({
     try {
       await loadRazorpay();
 
-      const storageKey = `guest-idemp:${eventId}:${email}`;
-      let idKey =
-        sessionStorage.getItem(storageKey) ||
-        crypto?.randomUUID?.() ||
-        String(Date.now());
-      sessionStorage.setItem(storageKey, idKey);
+      // Fresh idempotency key per pay attempt (prevents reusing a paid order)
+      const idKey = crypto?.randomUUID?.() || String(Date.now());
 
       const start = await guestStart(
         { eventId, quantity: 1, buyer: { name, email, phone } },
         idKey
       );
 
+      // Backward/forward compatibility with API shapes
+      const orderId = start.razorpayOrderId || start.orderId;
+      const amountMinor = start.amountMinor ?? start.amount;
+      if (!orderId)
+        throw new Error("Unable to create order. Please try again.");
+
       const options = {
         key: start.keyId,
-        order_id: start.orderId,
-        amount: start.amountMinor,
-        currency: start.currency,
+        order_id: orderId,
+        amount: amountMinor, // safe for order flow; ignored by Checkout if order_id provided
+        currency: start.currency || "INR",
         name: "Social Dining",
         description: eventTitle,
         prefill: { name, email, contact: phone },
         notes: { registrationId: start.registrationId },
         handler: () => {
+          // Successful payment: redirect & let webhook confirm
           setTimeout(() => {
             window.location.assign(
               `/thank-you?rid=${
@@ -79,7 +82,13 @@ export default function GuestRegisterDialog({
             );
           }, 250);
         },
+        modal: {
+          ondismiss: () => {
+            // no persistence => next click will create a fresh order
+          },
+        },
       };
+
       new window.Razorpay(options).open();
     } catch (e) {
       setErr(e?.message || "Something went wrong");

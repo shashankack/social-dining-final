@@ -1,4 +1,3 @@
-// src/pages/EventDetailPage.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
@@ -409,9 +408,6 @@ export default function EventDetailPage() {
               }}
             >
               <Stack spacing={1}>
-                {/* <Typography sx={{ color: "secondary.main", opacity: 0.9 }}>
-                  🎟 Remaining: <b>{remaining}</b>
-                </Typography> */}
                 <Typography sx={{ color: "secondary.main", opacity: 0.9 }}>
                   Entry fee: <b>{price}</b>
                 </Typography>
@@ -566,7 +562,6 @@ export default function EventDetailPage() {
                     objectFit: "cover",
                     borderRadius: 2,
                     border: "1px solid rgba(181,87,37,0.35)",
-                    flex: "0 0 auto",
                   }}
                 />
               ))}
