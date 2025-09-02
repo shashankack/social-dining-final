@@ -1,3 +1,4 @@
+// src/components/GuestRegisterDialog.jsx
 import React from "react";
 import {
   Dialog,
@@ -49,7 +50,7 @@ export default function GuestRegisterDialog({
     try {
       await loadRazorpay();
 
-      // Fresh idempotency key per pay attempt (prevents reusing a paid order)
+      // Fresh idempotency key per attempt (prevents reusing a paid order)
       const idKey = crypto?.randomUUID?.() || String(Date.now());
 
       const start = await guestStart(
@@ -57,7 +58,7 @@ export default function GuestRegisterDialog({
         idKey
       );
 
-      // Backward/forward compatibility with API shapes
+      // Support both shapes from backend
       const orderId = start.razorpayOrderId || start.orderId;
       const amountMinor = start.amountMinor ?? start.amount;
       if (!orderId)
@@ -66,14 +67,14 @@ export default function GuestRegisterDialog({
       const options = {
         key: start.keyId,
         order_id: orderId,
-        amount: amountMinor, // safe for order flow; ignored by Checkout if order_id provided
+        amount: amountMinor, // ignored by Checkout when order_id provided
         currency: start.currency || "INR",
         name: "Social Dining",
         description: eventTitle,
         prefill: { name, email, contact: phone },
         notes: { registrationId: start.registrationId },
         handler: () => {
-          // Successful payment: redirect & let webhook confirm
+          // Success → thank-you (webhook will confirm)
           setTimeout(() => {
             window.location.assign(
               `/thank-you?rid=${
@@ -84,7 +85,7 @@ export default function GuestRegisterDialog({
         },
         modal: {
           ondismiss: () => {
-            // no persistence => next click will create a fresh order
+            // No persistence — next click will create a fresh order
           },
         },
       };
