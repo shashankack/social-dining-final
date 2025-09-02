@@ -17,7 +17,7 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import EventSeatRoundedIcon from "@mui/icons-material/EventSeatRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
-import { apiFetch } from "../lib/api";
+import { guestStatus } from "../lib/guestApi"; // uses registrationId+email
 
 export default function ThankYouPage() {
   const [sp] = useSearchParams();
@@ -37,13 +37,9 @@ export default function ThankYouPage() {
       return;
     }
     try {
-      // cache-proof GET via apiFetch; also ensure unique URL
-      const path = `/guest/status?rid=${encodeURIComponent(
-        rid
-      )}&email=${encodeURIComponent(email)}`;
-      const s = await apiFetch(path, { method: "GET" });
+      // guestStatus sends ?registrationId=<rid>&email=<email>
+      const s = await guestStatus(rid, email);
 
-      // Accept either direct status or nested fields if your API evolves
       const status = s?.status || s?.registration?.status;
       if (status === "CONFIRMED") {
         setDetails(s);
@@ -55,17 +51,12 @@ export default function ThankYouPage() {
         setState("pending");
         return;
       }
-      if (
-        status === "CANCELLED" ||
-        status === "EXPIRED" ||
-        status === "REFUNDED"
-      ) {
+      if (["CANCELLED", "EXPIRED", "REFUNDED"].includes(status)) {
         setErr(`Status: ${status}`);
         setState("error");
         if (pollRef.current) clearInterval(pollRef.current);
         return;
       }
-      // Unknown payload → error
       setErr("Unexpected response while checking status.");
       setState("error");
       if (pollRef.current) clearInterval(pollRef.current);
@@ -83,7 +74,7 @@ export default function ThankYouPage() {
       await fetchStatus();
       if (!alive) return;
 
-      // Poll every 2.5s, but stop after ~90s to avoid infinite spinner.
+      // Poll every 2.5s, but stop after ~90s to avoid infinite spinner
       pollRef.current = setInterval(async () => {
         const elapsed = Date.now() - startedAtRef.current;
         if (elapsed > 90_000) {
@@ -175,7 +166,7 @@ export default function ThankYouPage() {
               </Typography>
             </Stack>
 
-            {/* Show a single, definitive message */}
+            {/* One definitive message */}
             <Alert
               icon={<EmailRoundedIcon fontSize="small" />}
               severity="success"
