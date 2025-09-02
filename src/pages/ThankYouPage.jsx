@@ -1,3 +1,4 @@
+// src/pages/ThankYouPage.jsx
 import React from "react";
 import { useSearchParams, Link as RouterLink } from "react-router-dom";
 import {
@@ -16,47 +17,94 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import EventSeatRoundedIcon from "@mui/icons-material/EventSeatRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
-import { guestStatus } from "../lib/guestApi";
+import { apiFetch } from "../lib/api";
 
 export default function ThankYouPage() {
   const [sp] = useSearchParams();
-  const rid = sp.get("rid") || "";
-  const email = sp.get("email") || "";
+  const rid = (sp.get("rid") || "").trim();
+  const email = (sp.get("email") || "").trim();
 
   const [state, setState] = React.useState("loading"); // loading | ok | pending | error
   const [details, setDetails] = React.useState(null);
-  const [err, setErr] = React.useState();
+  const [err, setErr] = React.useState("");
+  const pollRef = React.useRef(null);
+  const startedAtRef = React.useRef(Date.now());
+
+  const fetchStatus = React.useCallback(async () => {
+    if (!rid || !email) {
+      setErr("Missing registration reference or email.");
+      setState("error");
+      return;
+    }
+    try {
+      // cache-proof GET via apiFetch; also ensure unique URL
+      const path = `/guest/status?rid=${encodeURIComponent(
+        rid
+      )}&email=${encodeURIComponent(email)}`;
+      const s = await apiFetch(path, { method: "GET" });
+
+      // Accept either direct status or nested fields if your API evolves
+      const status = s?.status || s?.registration?.status;
+      if (status === "CONFIRMED") {
+        setDetails(s);
+        setState("ok");
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+      if (status === "PENDING") {
+        setState("pending");
+        return;
+      }
+      if (
+        status === "CANCELLED" ||
+        status === "EXPIRED" ||
+        status === "REFUNDED"
+      ) {
+        setErr(`Status: ${status}`);
+        setState("error");
+        if (pollRef.current) clearInterval(pollRef.current);
+        return;
+      }
+      // Unknown payload → error
+      setErr("Unexpected response while checking status.");
+      setState("error");
+      if (pollRef.current) clearInterval(pollRef.current);
+    } catch (e) {
+      setErr(e?.message || "Failed to check payment status.");
+      setState("error");
+      if (pollRef.current) clearInterval(pollRef.current);
+    }
+  }, [rid, email]);
 
   React.useEffect(() => {
     let alive = true;
 
-    async function poll() {
-      try {
-        const s = await guestStatus(rid, email);
-        if (!alive) return;
-        if (s.status === "CONFIRMED") {
-          setState("ok");
-          setDetails(s);
-          return;
-        }
-        if (s.status === "PENDING") {
-          setState("pending");
-          return;
-        }
-        setState("error");
-      } catch (e) {
-        setErr(e?.message);
-        setState("error");
-      }
-    }
+    const start = async () => {
+      await fetchStatus();
+      if (!alive) return;
 
-    poll();
-    const t = setInterval(poll, 2500);
+      // Poll every 2.5s, but stop after ~90s to avoid infinite spinner.
+      pollRef.current = setInterval(async () => {
+        const elapsed = Date.now() - startedAtRef.current;
+        if (elapsed > 90_000) {
+          clearInterval(pollRef.current);
+          setErr(
+            "Still processing after a while. If you received a confirmation email, your booking is confirmed."
+          );
+          setState("error");
+          return;
+        }
+        await fetchStatus();
+      }, 2500);
+    };
+
+    start();
+
     return () => {
       alive = false;
-      clearInterval(t);
+      if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [rid, email]);
+  }, [fetchStatus]);
 
   const Wrapper = ({ children }) => (
     <Box
@@ -127,14 +175,7 @@ export default function ThankYouPage() {
               </Typography>
             </Stack>
 
-            <Alert
-              icon={<EmailRoundedIcon fontSize="small" />}
-              severity="info"
-              sx={{ borderRadius: 2 }}
-            >
-              A confirmation email will be sent to <b>{email}</b> with your
-              booking details.
-            </Alert>
+            {/* Show a single, definitive message */}
             <Alert
               icon={<EmailRoundedIcon fontSize="small" />}
               severity="success"
@@ -296,8 +337,9 @@ export default function ThankYouPage() {
             icon={<EmailRoundedIcon fontSize="small" />}
             sx={{ width: "100%", borderRadius: 2 }}
           >
-            If the payment eventually clears, a confirmation email will be sent
-            to <b>{email}</b>. Otherwise, please retry from the event page.
+            If the payment has been captured, you will (or already did) receive
+            a confirmation email at <b>{email}</b>. You can safely return to the
+            events page.
           </Alert>
 
           <Stack
