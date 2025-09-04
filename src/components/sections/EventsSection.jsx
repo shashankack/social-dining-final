@@ -17,12 +17,6 @@ import { EffectCards } from "swiper/modules";
 // const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
 const USE_GUEST_FLOW = "1";
 
-const OFFSETS = [
-  { left: "22%", rotate: -10, z: 1 },
-  { left: "38%", rotate: 0, z: 2 },
-  { left: "54%", rotate: 8, z: 1 },
-];
-
 export default function EventsSection({ limit = 9 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -82,7 +76,7 @@ export default function EventsSection({ limit = 9 }) {
           (Array.isArray(e.thumbnailUrls) &&
             (e.thumbnailUrls[1] || e.thumbnailUrls[0])) ||
           (Array.isArray(e.galleryUrls) && e.galleryUrls[0]) ||
-          e.thumbnailUrl || // legacy fallback if any
+          e.thumbnailUrl || // legacy fallback
           null;
 
         return {
@@ -120,37 +114,32 @@ export default function EventsSection({ limit = 9 }) {
     show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
   };
 
-  // Desktop card entrance (fan-out with stagger)
-  const containerVariants = {
+  // Grid container stagger
+  const gridContainerVariants = {
     hidden: {},
     show: {
       transition: {
-        staggerChildren: prefersReduced ? 0 : 0.12,
+        staggerChildren: prefersReduced ? 0 : 0.08,
         delayChildren: 0.1,
       },
     },
   };
 
-  const cardVariants = {
-    hidden: (i) => ({
+  // Grid item fly-in
+  const gridItemVariants = {
+    hidden: {
       opacity: 0,
-      scale: prefersReduced ? 1 : 0.9,
-      y: prefersReduced ? 0 : 30,
-      left: "38%",
-      rotate: 0,
-      zIndex: OFFSETS[i]?.z ?? 1,
-    }),
-    show: (i) => ({
+      y: prefersReduced ? 0 : 24,
+      scale: prefersReduced ? 1 : 0.98,
+    },
+    show: {
       opacity: 1,
-      scale: 1,
       y: 0,
-      left: OFFSETS[i]?.left ?? "38%",
-      rotate: OFFSETS[i]?.rotate ?? 0,
-      zIndex: OFFSETS[i]?.z ?? 1,
+      scale: 1,
       transition: prefersReduced
         ? { duration: 0.2 }
-        : { type: "spring", stiffness: 260, damping: 22, duration: 0.6 },
-    }),
+        : { type: "spring", stiffness: 260, damping: 22, duration: 0.5 },
+    },
   };
 
   // Simple empty state UI
@@ -173,6 +162,26 @@ export default function EventsSection({ limit = 9 }) {
         All caught up for now. Check back later.
       </Typography>
     </Box>
+  );
+
+  // Skeleton cards for loading (desktop)
+  const SkeletonCard = () => (
+    <Box
+      sx={{
+        width: "100%",
+        aspectRatio: "3 / 4",
+        borderRadius: 2,
+        border: "3px solid #B55725",
+        background:
+          "linear-gradient(90deg, #1a1a1a 25%, #232323 37%, #1a1a1a 63%)",
+        backgroundSize: "400% 100%",
+        animation: "shimmer 1.4s ease-in-out infinite",
+        "@keyframes shimmer": {
+          "0%": { backgroundPosition: "0% 0" },
+          "100%": { backgroundPosition: "-135% 0" },
+        },
+      }}
+    />
   );
 
   return (
@@ -312,90 +321,98 @@ export default function EventsSection({ limit = 9 }) {
           )}
         </Box>
       ) : (
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          width="100%"
-          mt={4}
-        >
-          <Box
-            component={motion.div}
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, amount: 0.3 }}
-            sx={{
-              position: "relative",
-              width: "90%",
-              height: 500,
-              maxWidth: 1300,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-            }}
-          >
-            {/* Desktop empty state */}
-            {!loading && normalized.length === 0 ? (
-              <Box
-                sx={{
-                  color: "secondary.main",
-                  textAlign: "center",
-                  border: "1px dashed rgba(181,87,37,0.45)",
-                  borderRadius: 2,
-                  p: 4,
-                  width: 520,
-                }}
-              >
-                <Typography sx={{ fontWeight: 800, mb: 1 }}>
-                  No upcoming events
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.85 }}>
-                  All caught up for now. Check back later.
-                </Typography>
-              </Box>
-            ) : (
-              (loading
-                ? Array.from({ length: 3 })
-                : normalized.slice(0, 3)
-              ).map((ev, i) => {
-                const img = ev?.img;
-                return (
+        // Desktop GRID view with fly-in animation
+        <Box width="100%" mt={2}>
+          {!loading && normalized.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <Box
+              component={motion.div}
+              variants={gridContainerVariants}
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true, amount: 0.2 }}
+              sx={{
+                mx: "auto",
+                width: "92%",
+                display: "grid",
+                gap: 3,
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(3, 1fr)",
+                  lg: "repeat(4, 1fr)",
+                },
+              }}
+            >
+              {(loading ? Array.from({ length: 8 }) : normalized).map((ev, i) =>
+                loading ? (
+                  <SkeletonCard key={`skeleton-${i}`} />
+                ) : (
                   <Box
-                    key={ev?.id || i}
-                    component={motion.img}
-                    custom={i}
-                    variants={cardVariants}
-                    src={img}
-                    alt={ev?.title || "event"}
-                    onClick={() => ev && handleEventClick(ev)}
+                    key={ev.id}
+                    component={motion.div}
+                    variants={gridItemVariants}
+                    onClick={() => handleEventClick(ev)}
                     whileHover={
                       prefersReduced
                         ? undefined
                         : {
-                            scale: 1.05,
+                            y: -4,
+                            boxShadow:
+                              "0 10px 24px rgba(0,0,0,0.35), 0 0 0 3px #B55725 inset",
                             transition: {
                               type: "spring",
-                              stiffness: 220,
+                              stiffness: 300,
                               damping: 20,
                             },
                           }
                     }
-                    style={{ position: "absolute", top: 0 }}
                     sx={{
-                      width: 320,
-                      height: 440,
-                      objectFit: "cover",
                       borderRadius: 2,
-                      boxShadow: 4,
-                      cursor: ev ? "pointer" : "default",
+                      overflow: "hidden",
+                      border: "3px solid #B55725",
+                      cursor: "pointer",
                       backgroundColor: "#111",
+                      display: "flex",
+                      flexDirection: "column",
+                      minHeight: 0,
                     }}
-                  />
-                );
-              })
-            )}
-          </Box>
+                  >
+                    <Box
+                      component="img"
+                      src={ev.img}
+                      alt={ev.title}
+                      sx={{
+                        width: "100%",
+                        aspectRatio: "3 / 4",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                    <Box sx={{ p: 1.5 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ fontWeight: 700, color: "#fff", mb: 0.5 }}
+                        noWrap
+                        title={ev.title}
+                      >
+                        {ev.title}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "rgba(255,255,255,0.75)" }}
+                        noWrap
+                        title={ev.startsAt}
+                      >
+                        {ev.startsAt}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )
+              )}
+            </Box>
+          )}
         </Box>
       )}
     </Box>
