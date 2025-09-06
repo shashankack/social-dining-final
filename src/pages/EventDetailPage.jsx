@@ -182,7 +182,7 @@ export default function EventDetailPage() {
         <Box
           sx={{
             position: "relative",
-            height: { xs: 360, md: 520 },
+            height: { xs: 360, md: "60vh" },
             bgcolor: "#111",
           }}
         >
