@@ -13,6 +13,8 @@ import {
   Button,
 } from "@mui/material";
 import RegisterDialog from "../components/RegisterDialog";
+import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
+import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 
 /* ---------- Formatting helpers ---------- */
 function parseTs(value) {
@@ -241,13 +243,18 @@ export default function EventDetailPage() {
             bgcolor: "#111",
           }}
         >
-          <Skeleton variant="rectangular" width="100%" height="100%" />
+          <Skeleton
+            variant="rectangular"
+            width="100%"
+            height="100%"
+            animation="wave"
+          />
         </Box>
         <Box sx={{ maxWidth: 1100, mx: "auto", px: 2, py: 4 }}>
-          <Skeleton width={240} height={36} />
-          <Skeleton width="60%" />
-          <Skeleton width="90%" />
-          <Skeleton width="75%" />
+          <Skeleton width={240} height={36} animation="wave" />
+          <Skeleton width="60%" animation="wave" />
+          <Skeleton width="90%" animation="wave" />
+          <Skeleton width="75%" animation="wave" />
         </Box>
       </Box>
     );
@@ -451,10 +458,16 @@ export default function EventDetailPage() {
                   flexWrap: "wrap",
                 }}
               >
-                {e.venueName && <MetaRow label="Venue" value={e.venueName} />}
+                {e.venueName && (
+                  <MetaRow
+                    label={<PlaceOutlinedIcon fontSize="medium" />}
+                    value={e.venueName}
+                  />
+                )}
+
                 {e.venueMapUrl && (
                   <MetaRow
-                    label="Map"
+                    label={<MapOutlinedIcon fontSize="medium" />}
                     value="Open in Maps"
                     href={e.venueMapUrl}
                   />

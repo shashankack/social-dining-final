@@ -269,6 +269,17 @@ const ClubSection = () => {
           fontWeight={800}
         >
           Clubs
+          <Box
+            component="img"
+            src={dot}
+            alt="dot"
+            sx={{
+              ml: 1,
+              width: 10,
+              height: 10,
+              display: "inline-block",
+            }}
+          />
         </Typography>
 
         <Grid

@@ -215,7 +215,6 @@ export default function EventsSection({ limit = 9 }) {
             width: 6,
             height: 6,
             display: "inline-block",
-            verticalAlign: "super",
           }}
         />
       </Typography>
