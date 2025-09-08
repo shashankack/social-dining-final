@@ -1,11 +1,11 @@
-export function loadRazorpay() {
-  return new Promise((resolve, reject) => {
-    if (window.Razorpay) return resolve(true);
-    const s = document.createElement("script");
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.async = true;
-    s.onload = () => resolve(true);
-    s.onerror = () => reject(new Error("Failed to load Razorpay checkout.js"));
-    document.body.appendChild(s);
+export function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (document.getElementById("razorpay-sdk")) return resolve(true);
+    const script = document.createElement("script");
+    script.id = "razorpay-sdk";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
   });
 }

@@ -1,7 +1,7 @@
+// src/pages/EventDetailPage.jsx
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { apiFetch } from "../lib/api";
-import { BookButton } from "../components/BookButton";
+import { getActivity } from "../lib/api";
 import {
   Box,
   Typography,
@@ -10,11 +10,9 @@ import {
   Divider,
   Skeleton,
   Paper,
+  Button,
 } from "@mui/material";
-import BookButtonGuest from "../components/BookButtonGuest";
-
-// const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
-const USE_GUEST_FLOW = "1";
+import RegisterDialog from "../components/RegisterDialog";
 
 /* ---------- Formatting helpers ---------- */
 function parseTs(value) {
@@ -26,7 +24,6 @@ function parseTs(value) {
 function formatDateRange(startsAt, endsAt) {
   const s = parseTs(startsAt);
   if (!s) return "";
-
   const e = parseTs(endsAt);
 
   const dtfDate = new Intl.DateTimeFormat("en-IN", {
@@ -59,7 +56,7 @@ function formatPriceFromMinor(minor, currency = "INR") {
   return nf.format(n / divisor);
 }
 
-/* ---------- Tiny UI primitives (no Chips) ---------- */
+/* ---------- Tiny UI primitives ---------- */
 const MetaPill = ({ children, tone = "default" }) => {
   const base = {
     default: { bg: "rgba(255,255,255,0.06)", bd: "rgba(181,87,37,0.45)" },
@@ -123,58 +120,116 @@ const MetaRow = ({ label, value, href }) => (
 );
 
 /* ---------- HTML section extractor ---------- */
-function splitDescriptionHTML(html) {
-  if (!html || typeof html !== "string") {
-    return { descHTML: "", detailsHTML: "" };
-  }
+function splitDescriptionHTML(html, additionalNotes) {
+  if (!html && !additionalNotes) return { descHTML: "", detailsHTML: "" };
+
+  let descHTML = "";
+  let detailsHTML = "";
 
   try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
+    if (html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const descNode =
+        doc.querySelector(".event_desc") ||
+        doc.querySelector(".event_description");
+      const detailsNode = doc.querySelector(".event_details");
 
-    // Preferred classes
-    const descNode =
-      doc.querySelector(".event_desc") ||
-      doc.querySelector(".event_description"); // backward compatibility
-    const detailsNode = doc.querySelector(".event_details");
+      descHTML = descNode ? descNode.innerHTML.trim() : "";
+      detailsHTML = detailsNode ? detailsNode.innerHTML.trim() : "";
 
-    const descHTML = descNode ? descNode.innerHTML.trim() : "";
-    const detailsHTML = detailsNode ? detailsNode.innerHTML.trim() : "";
-
-    // If nothing matched but the root has content, fallback to original HTML as description
-    if (!descHTML && !detailsHTML) {
-      // use body content, but keep it safe-ish
-      const bodyHTML = (doc.body && doc.body.innerHTML) || "";
-      return { descHTML: bodyHTML, detailsHTML: "" };
+      if (!descHTML && !detailsHTML) {
+        const bodyHTML = (doc.body && doc.body.innerHTML) || "";
+        descHTML = bodyHTML;
+      }
     }
-
-    return { descHTML, detailsHTML };
   } catch {
-    // very old browsers / server env safety
-    return { descHTML: html, detailsHTML: "" };
+    if (html) descHTML = html;
   }
+
+  // Prefer API-provided notes as Details
+  if (additionalNotes && typeof additionalNotes === "string") {
+    detailsHTML = additionalNotes.trim();
+  }
+
+  return { descHTML, detailsHTML };
+}
+
+/* ---------- Normalize API item -> view model ---------- */
+function normalizeEvent(apiItem) {
+  const thumb =
+    (Array.isArray(apiItem.thumbnailUrls) &&
+      (apiItem.thumbnailUrls[1] || apiItem.thumbnailUrls[0])) ||
+    (Array.isArray(apiItem.galleryUrls) && apiItem.galleryUrls[0]) ||
+    null;
+
+  const total = Number(apiItem.totalSlots ?? 0);
+  const taken = Number(apiItem.bookedSlots ?? 0);
+  const remaining = Math.max(0, total - taken);
+
+  const status = (apiItem.status || "").toLowerCase(); // upcoming/past/live
+
+  return {
+    id: apiItem.id,
+    slug: apiItem.slug,
+    title: apiItem.title,
+    description: apiItem.description,
+    additionalNotes: apiItem.additionalNotes, // HTML
+    startsAt: apiItem.startAt,
+    endsAt: apiItem.endAt,
+    thumbnailUrls: apiItem.thumbnailUrls || [],
+    galleryUrls: apiItem.galleryUrls || [],
+    venueName: apiItem.venueName,
+    venueMapUrl: apiItem.mapUrl,
+    currency: apiItem.currency || "INR",
+    registrationFeeMinor: apiItem.registrationFee, // paise
+    status,
+    canBook: !!apiItem.canBook,
+    isSoldOut: !apiItem.canBook || remaining <= 0 || status !== "upcoming",
+    slotsTotal: total,
+    slotsTaken: taken,
+    remainingSlots: remaining,
+    club: apiItem.clubName
+      ? {
+          name: apiItem.clubName,
+          slug: apiItem.clubSlug,
+          description: apiItem.clubDescription || "",
+        }
+      : undefined,
+    heroImg: thumb,
+  };
 }
 
 export default function EventDetailPage() {
   const { slug } = useParams();
   const [e, setE] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [openReg, setOpenReg] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
-        setE(await apiFetch(`/events/${slug}`));
+        setLoading(true);
+        const raw = await getActivity(slug);
+        const item =
+          raw?.id || raw?.slug
+            ? raw
+            : Array.isArray(raw?.items)
+            ? raw.items[0]
+            : raw;
+        const normalized = item ? normalizeEvent(item) : null;
+        if (!cancelled) setE(normalized);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
-  const remaining = useMemo(() => {
-    if (!e) return 0;
-    const r = Math.max(0, (e.slotsTotal ?? 0) - (e.slotsTaken ?? 0));
-    return typeof e.remainingSlots === "number" ? e.remainingSlots : r;
-  }, [e]);
+  const remaining = useMemo(() => (e ? e.remainingSlots : 0), [e]);
 
   if (loading) {
     return (
@@ -182,7 +237,7 @@ export default function EventDetailPage() {
         <Box
           sx={{
             position: "relative",
-            height: { xs: 360, md: "60vh" },
+            height: { xs: "90vh", md: "80vh" },
             bgcolor: "#111",
           }}
         >
@@ -206,10 +261,24 @@ export default function EventDetailPage() {
     );
   }
 
-  const { descHTML, detailsHTML } = splitDescriptionHTML(e.description);
+  const { descHTML, detailsHTML } = splitDescriptionHTML(
+    e.description,
+    e.additionalNotes
+  );
   const dateRange = formatDateRange(e.startsAt, e.endsAt);
   const price = formatPriceFromMinor(e.registrationFeeMinor, e.currency);
-  const soldOut = e.isSoldOut || remaining <= 0 || e.status !== "UPCOMING";
+  const soldOut = e.isSoldOut;
+
+  // Adapt event -> RegisterDialog expected shape
+  const activityForDialog = {
+    id: e.id,
+    title: e.title,
+    registrationFee: e.registrationFeeMinor, // paise
+    totalSlots: e.slotsTotal,
+    bookedSlots: e.slotsTaken,
+    currency: e.currency,
+    coverImageUrl: e.thumbnailUrls?.[0] || e.galleryUrls?.[0],
+  }; // matches RegisterDialog prop contract. :contentReference[oaicite:3]{index=3}
 
   return (
     <Box
@@ -222,7 +291,7 @@ export default function EventDetailPage() {
           position: "fixed",
           inset: 0,
           background:
-            "radial-gradient(40vw 40vw at 8% 12%, rgba(181,87,37,0.20) 0%, rgba(181,87,37,0.08) 40%, rgba(0,0,0,0) 70%)",
+            "radial-gradient(40vw 40vw at 8% 12%, rgba(181,87,37,0.10) 0%, rgba(181,87,37,0.08) 40%, rgba(0,0,0,0) 70%)",
           pointerEvents: "none",
           zIndex: 0,
         },
@@ -231,7 +300,7 @@ export default function EventDetailPage() {
           position: "fixed",
           inset: 0,
           background:
-            "radial-gradient(60vw 60vw at 100% 100%, rgba(181,87,37,0.22) 0%, rgba(0,0,0,0) 60%)",
+            "radial-gradient(60vw 60vw at 100% 100%, rgba(181,87,37,0.12) 0%, rgba(0,0,0,0) 90%)",
           pointerEvents: "none",
           zIndex: 0,
         },
@@ -242,14 +311,13 @@ export default function EventDetailPage() {
         component="section"
         sx={{
           position: "relative",
-          height: { xs: "90vh", md: 560 },
+          height: { xs: "90vh", md: "80vh" },
           width: "100%",
           overflow: "hidden",
         }}
       >
         {e.thumbnailUrls?.length || e.galleryUrls?.length ? (
           <picture>
-            {/* Mobile first */}
             {e.thumbnailUrls?.[1] && (
               <source media="(max-width: 600px)" srcSet={e.thumbnailUrls[1]} />
             )}
@@ -326,10 +394,9 @@ export default function EventDetailPage() {
                   {e.status}
                 </MetaPill>
                 {typeof e.slotsTotal === "number" && (
-                  <MetaPill tone={soldOut ? "muted" : "default"}>{`${Math.max(
-                    0,
-                    remaining
-                  )} left`}</MetaPill>
+                  <MetaPill tone={soldOut ? "muted" : "default"}>
+                    {`${Math.max(0, remaining)} left`}
+                  </MetaPill>
                 )}
               </Stack>
 
@@ -413,27 +480,20 @@ export default function EventDetailPage() {
                 </Typography>
 
                 {!soldOut ? (
-                  USE_GUEST_FLOW ? (
-                    <BookButtonGuest
-                      eventId={e.id}
-                      eventTitle={e.title}
-                      unitPriceMinor={e.registrationFeeMinor}
-                      defaultQty={1}
-                    />
-                  ) : (
-                    <BookButton
-                      eventId={e.id}
-                      onSuccess={() =>
-                        alert("We’ll email you once payment is confirmed.")
-                      }
-                    />
-                  )
+                  <Button
+                    variant="contained"
+                    onClick={() => setOpenReg(true)}
+                    sx={{ fontWeight: 800 }}
+                  >
+                    Register
+                  </Button>
                 ) : (
                   <Typography color="secondary.main" sx={{ opacity: 0.7 }}>
                     Booking closed or sold out.
                   </Typography>
                 )}
-                {USE_GUEST_FLOW && !soldOut && (
+
+                {!soldOut && (
                   <Typography
                     variant="caption"
                     sx={{
@@ -443,8 +503,7 @@ export default function EventDetailPage() {
                       display: "block",
                     }}
                   >
-                    Tip: enter the email you’d like us to send your confirmation
-                    to.
+                    Secure checkout via Razorpay.
                   </Typography>
                 )}
               </Stack>
@@ -455,7 +514,7 @@ export default function EventDetailPage() {
 
       {/* Body section (full width container) */}
       <Box sx={{ maxWidth: 1100, mx: "auto", px: 2, py: 4 }}>
-        {/* About (from .event_desc / .event_description) */}
+        {/* About */}
         {descHTML && (
           <>
             <Typography
@@ -476,7 +535,6 @@ export default function EventDetailPage() {
                 "& a": { color: "primary.main", fontWeight: 600 },
                 "& ul, & ol": { paddingLeft: "1.2rem", margin: "6px 0 12px" },
               }}
-              // re-wrap the HTML inside a container with class to reuse styles
               dangerouslySetInnerHTML={{
                 __html: `<div class="event_desc">${descHTML}</div>`,
               }}
@@ -484,7 +542,7 @@ export default function EventDetailPage() {
           </>
         )}
 
-        {/* Details (from .event_details) */}
+        {/* Details — prefers API additionalNotes if present */}
         {detailsHTML && (
           <>
             <Divider sx={{ my: 4, borderColor: "rgba(181,87,37,0.35)" }} />
@@ -504,11 +562,7 @@ export default function EventDetailPage() {
                 },
                 "& p": { margin: "0 0 10px" },
                 "& a": { color: "primary.main", fontWeight: 600 },
-                "& ul, & ol": {
-                  paddingLeft: "1.2rem",
-                  margin: "6px 0 12px",
-                },
-                // common pattern: if user uses definition list or table
+                "& ul, & ol": { paddingLeft: "1.2rem", margin: "6px 0 12px" },
                 "& table": {
                   width: "100%",
                   borderCollapse: "collapse",
@@ -579,12 +633,34 @@ export default function EventDetailPage() {
             >
               About the Club
             </Typography>
-            <Typography sx={{ color: "secondary.main", opacity: 0.85, mt: 1 }}>
-              {e.club.description}
-            </Typography>
+            {e.club.description ? (
+              <Typography
+                sx={{ color: "secondary.main", opacity: 0.85, mt: 1 }}
+              >
+                {e.club.description}
+              </Typography>
+            ) : (
+              <Typography
+                sx={{ color: "secondary.main", opacity: 0.75, mt: 1 }}
+              >
+                {e.club.name}
+              </Typography>
+            )}
           </>
         )}
       </Box>
+
+      {/* Register dialog (mounted once) */}
+      <RegisterDialog
+        open={openReg}
+        onClose={() => setOpenReg(false)}
+        activity={activityForDialog}
+        onSuccess={() => {
+          setOpenReg(false);
+          // simple UX: show toast/alert; you can route to a success page here
+          alert("Thanks! We’ll email your confirmation shortly.");
+        }}
+      />
     </Box>
   );
 }

@@ -18,8 +18,8 @@ import {
 import MenuIcon from "@mui/icons-material/Menu";
 import { useTheme } from "@mui/material/styles";
 import { useNavigate, useLocation, Link as RouterLink } from "react-router-dom";
-import { useAuth } from "../lib/auth";
-import { useAuthDialog } from "./AuthDialogProvider";
+// import { useAuth } from "../lib/auth";
+// import { useAuthDialog } from "./AuthDialogProvider";
 
 // const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
 const USE_GUEST_FLOW = "1";
@@ -30,12 +30,12 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const auth = useAuth();
-  const user = auth?.user;
-  const signout = auth?.signout;
+  // const auth = useAuth();
+  // const user = auth?.user;
+  // const signout = auth?.signout;
 
-  const authDialog = useAuthDialog?.();
-  const openAuth = authDialog?.openAuth;
+  // const authDialog = useAuthDialog?.();
+  // const openAuth = authDialog?.openAuth;
 
   const [open, setOpen] = useState(false);
   const toggle = (val) => () => setOpen(val);

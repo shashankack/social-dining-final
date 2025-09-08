@@ -2,12 +2,12 @@
 import React, { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, CircularProgress } from "@mui/material";
-import { useAuth } from "../lib/auth";
-import { useAuthDialog } from "./AuthDialogProvider";
+// import { useAuth } from "../lib/auth";
+// import { useAuthDialog } from "./AuthDialogProvider";
 
 export default function RequireAuth({ children }) {
-  const { user, loading } = useAuth() || {};
-  const { openAuth } = useAuthDialog() || {};
+  // const { user, loading } = useAuth() || {};
+  // const { openAuth } = useAuthDialog() || {};
   const location = useLocation();
   const navigate = useNavigate();
   const openedRef = useRef(false);

@@ -1,11 +1,8 @@
 // src/sections/EventsSection.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import { Box, Typography, useTheme, useMediaQuery } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
-import { apiFetch } from "../../lib/api";
-import { useAuth } from "../../lib/auth";
-import { useAuthDialog } from "../../components/AuthDialogProvider";
 import dot from "/images/dot.svg";
 
 // Swiper for mobile
@@ -14,7 +11,9 @@ import "swiper/css";
 import "swiper/css/effect-cards";
 import { EffectCards } from "swiper/modules";
 
-// const USE_GUEST_FLOW = import.meta.env.VITE_GUEST_FLOW === "1";
+// 🔗 Pull events from your API using the shared hook
+import { useActivities } from "../../hooks/useActivities";
+
 const USE_GUEST_FLOW = "1";
 
 export default function EventsSection({ limit = 9 }) {
@@ -22,53 +21,19 @@ export default function EventsSection({ limit = 9 }) {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const prefersReduced = useReducedMotion();
 
+  // ⬇️ Fetch published+upcoming activities from API
+  const { items, loading } = useActivities({ status: "upcoming" });
+
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const auth = useAuth();
-  const user = auth?.user;
-
-  const { openAuth } = useAuthDialog() || {};
   const navigate = useNavigate();
+  const { current: mountedRef } = useRef({ mounted: false });
 
-  const ctrlRef = useRef(null);
-  const mountedRef = useRef(false);
-
-  // Fetch fresh every mount
-  const fetchEvents = async ({ signal } = {}) => {
-    const url = `/events?onlyAvailable=true&includeClub=true&sort=startsAtAsc&limit=${limit}`;
-    try {
-      const res = await apiFetch(url, {
-        signal,
-        headers: {
-          // keep the API fresh while you build; you can remove later if you add server-side ETags
-          "Cache-Control": "no-store",
-        },
-      });
-      const items = Array.isArray(res?.items) ? res.items : [];
-      if (mountedRef.current) setEvents(items);
-    } catch (e) {
-      if (mountedRef.current) setEvents([]);
-    } finally {
-      if (mountedRef.current) setLoading(false);
-    }
-  };
-
+  // Apply limit on the client (API already supports limit if you want to push it down)
   useEffect(() => {
-    mountedRef.current = true;
-    ctrlRef.current = new AbortController();
-    setLoading(true);
-    fetchEvents({ signal: ctrlRef.current.signal });
+    setEvents((items || []).slice(0, limit));
+  }, [items, limit]);
 
-    return () => {
-      mountedRef.current = false;
-      try {
-        ctrlRef.current?.abort();
-      } catch {}
-    };
-  }, [limit]);
-
-  // Normalize for rendering (use thumbnailUrls[1] first, then [0], then galleryUrls[0])
+  // Normalize shape for the existing UI
   const normalized = useMemo(
     () =>
       (events || []).map((e) => {
@@ -76,7 +41,7 @@ export default function EventsSection({ limit = 9 }) {
           (Array.isArray(e.thumbnailUrls) &&
             (e.thumbnailUrls[1] || e.thumbnailUrls[0])) ||
           (Array.isArray(e.galleryUrls) && e.galleryUrls[0]) ||
-          e.thumbnailUrl || // legacy fallback
+          e.thumbnailUrl ||
           null;
 
         return {
@@ -84,7 +49,8 @@ export default function EventsSection({ limit = 9 }) {
           slug: e.slug,
           title: e.title,
           status: e.status,
-          startsAt: e.startsAt,
+          // UI expects `startsAt`; API gives `startAt`
+
           img: thumb,
         };
       }),
@@ -93,18 +59,13 @@ export default function EventsSection({ limit = 9 }) {
 
   const handleEventClick = (ev) => {
     const target = `/events/${ev.slug || ev.id}`;
+    // guest-first flow for now
     if (USE_GUEST_FLOW) {
       navigate(target);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    if (user) {
-      navigate(target);
-    } else if (openAuth) {
-      openAuth({ mode: "signin", redirectTo: target });
-    } else {
-      navigate(`/signin?redirect=${encodeURIComponent(target)}`);
-    }
+    navigate(target);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -268,7 +229,6 @@ export default function EventsSection({ limit = 9 }) {
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.5 }}
         >
-          {/* If no events after load, show empty state instead of an empty swiper */}
           {!loading && normalized.length === 0 ? (
             <EmptyState />
           ) : (
@@ -321,7 +281,6 @@ export default function EventsSection({ limit = 9 }) {
           )}
         </Box>
       ) : (
-        // Desktop GRID view with fly-in animation
         <Box width="100%" mt={2}>
           {!loading && normalized.length === 0 ? (
             <EmptyState />
@@ -345,7 +304,7 @@ export default function EventsSection({ limit = 9 }) {
                 },
               }}
             >
-              {(loading ? Array.from({ length: 8 }) : normalized).map((ev, i) =>
+              {(loading ? Array.from({ length: 4 }) : normalized).map((ev, i) =>
                 loading ? (
                   <SkeletonCard key={`skeleton-${i}`} />
                 ) : (
@@ -398,14 +357,6 @@ export default function EventsSection({ limit = 9 }) {
                         title={ev.title}
                       >
                         {ev.title}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        sx={{ color: "rgba(255,255,255,0.75)" }}
-                        noWrap
-                        title={ev.startsAt}
-                      >
-                        {ev.startsAt}
                       </Typography>
                     </Box>
                   </Box>
