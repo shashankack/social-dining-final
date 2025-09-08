@@ -19,8 +19,13 @@ import MapOutlinedIcon from "@mui/icons-material/MapOutlined";
 /* ---------- Formatting helpers ---------- */
 function parseTs(value) {
   if (!value) return null;
-  if (/[zZ]|[+\-]\d{2}:\d{2}$/.test(value)) return new Date(value);
-  return new Date(value + "Z");
+  if (value instanceof Date) return value;
+  let v = String(value).trim().replace(" ", "T");
+  v = v.replace(/([+\-]\d{2})(\d{2})$/, "$1:$2"); // +0530 -> +05:30
+  v = v.replace(/([+\-]\d{2})$/, "$1:00"); // +05 -> +05:00
+  v = v.replace(/\+00(:?00)?$/, "Z"); // +00 / +00:00 -> Z
+  if (!/[zZ]|[+\-]\d{2}:\d{2}$/.test(v)) v += "Z";
+  return new Date(v);
 }
 
 function formatDateRange(startsAt, endsAt) {
@@ -38,6 +43,7 @@ function formatDateRange(startsAt, endsAt) {
   const dtfTime = new Intl.DateTimeFormat("en-IN", {
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
     timeZone: "Asia/Kolkata",
   });
 
@@ -285,7 +291,7 @@ export default function EventDetailPage() {
     bookedSlots: e.slotsTaken,
     currency: e.currency,
     coverImageUrl: e.thumbnailUrls?.[0] || e.galleryUrls?.[0],
-  }; // matches RegisterDialog prop contract. :contentReference[oaicite:3]{index=3}
+  };
 
   return (
     <Box
@@ -313,6 +319,17 @@ export default function EventDetailPage() {
         },
       }}
     >
+      <p>
+        Join us for a refreshing Matcha Boba Pop-Up this September!
+        <br />
+        <br />
+        Experience the perfect blend of freshly whisked matcha, creamy oat milk,
+        and chewy boba at Euphoria Studio Kitchen, Jayanagar.
+      </p>
+      <ul>
+        <li>September 20th</li>
+        <li></li>
+      </ul>
       {/* Hero */}
       <Box
         component="section"
@@ -400,11 +417,6 @@ export default function EventDetailPage() {
                 <MetaPill tone={soldOut ? "muted" : "accent"}>
                   {e.status}
                 </MetaPill>
-                {typeof e.slotsTotal === "number" && (
-                  <MetaPill tone={soldOut ? "muted" : "default"}>
-                    {`${Math.max(0, remaining)} left`}
-                  </MetaPill>
-                )}
               </Stack>
 
               <Typography
@@ -670,7 +682,6 @@ export default function EventDetailPage() {
         activity={activityForDialog}
         onSuccess={() => {
           setOpenReg(false);
-          // simple UX: show toast/alert; you can route to a success page here
           alert("Thanks! We’ll email your confirmation shortly.");
         }}
       />
