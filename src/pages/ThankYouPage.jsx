@@ -17,7 +17,7 @@ import ErrorOutlineRoundedIcon from "@mui/icons-material/ErrorOutlineRounded";
 import EmailRoundedIcon from "@mui/icons-material/EmailRounded";
 import EventSeatRoundedIcon from "@mui/icons-material/EventSeatRounded";
 import ReceiptLongRoundedIcon from "@mui/icons-material/ReceiptLongRounded";
-import { guestStatus } from "../lib/guestApi"; // uses registrationId+email
+// import { guestStatus } from "../lib/guestApi"; // uses registrationId+email
 
 export default function ThankYouPage() {
   const [sp] = useSearchParams();

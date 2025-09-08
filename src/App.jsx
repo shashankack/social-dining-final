@@ -13,7 +13,7 @@ const HomePage = lazy(() => import("./pages/HomePage"));
 
 const EventDetailPage = lazy(() => import("./pages/EventDetailPage"));
 
-const ThankYouPage = lazy(() => import("./pages/ThankYouPage"));
+// const ThankYouPage = lazy(() => import("./pages/ThankYouPage"));
 const AccountPage = lazy(() => import("./pages/AccountPage"));
 
 export default function App() {
@@ -31,7 +31,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/events/:slug" element={<EventDetailPage />} />
           <Route path="/club/:slug" element={<ClubDetailPage />} />
-          <Route path="/thank-you" element={<ThankYouPage />} />
+          {/* <Route path="/thank-you" element={<ThankYouPage />} /> */}
           {/* <Route path="/account" element={<AccountPage />} /> */}
         </Routes>
       </Suspense>
