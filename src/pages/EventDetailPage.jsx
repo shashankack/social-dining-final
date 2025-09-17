@@ -279,7 +279,8 @@ export default function EventDetailPage() {
     e.additionalNotes
   );
   const dateRange = formatDateRange(e.startsAt, e.endsAt);
-  const price = formatPriceFromMinor(e.registrationFeeMinor, e.currency);
+  const isFree = !e.registrationFeeMinor || Number(e.registrationFeeMinor) === 0;
+  const price = isFree ? "Free" : formatPriceFromMinor(e.registrationFeeMinor, e.currency);
   const soldOut = e.isSoldOut;
 
   // Adapt event -> RegisterDialog expected shape
@@ -319,17 +320,6 @@ export default function EventDetailPage() {
         },
       }}
     >
-      <p>
-        Join us for a refreshing Matcha Boba Pop-Up this September!
-        <br />
-        <br />
-        Experience the perfect blend of freshly whisked matcha, creamy oat milk,
-        and chewy boba at Euphoria Studio Kitchen, Jayanagar.
-      </p>
-      <ul>
-        <li>September 20th</li>
-        <li></li>
-      </ul>
       {/* Hero */}
       <Box
         component="section"
@@ -510,7 +500,7 @@ export default function EventDetailPage() {
                     onClick={() => setOpenReg(true)}
                     sx={{ fontWeight: 800 }}
                   >
-                    Register
+                    {isFree ? "Register for Free" : "Register"}
                   </Button>
                 ) : (
                   <Typography color="secondary.main" sx={{ opacity: 0.7 }}>
@@ -518,7 +508,7 @@ export default function EventDetailPage() {
                   </Typography>
                 )}
 
-                {!soldOut && (
+                {!soldOut && !isFree && (
                   <Typography
                     variant="caption"
                     sx={{

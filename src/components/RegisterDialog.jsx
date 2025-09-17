@@ -44,6 +44,7 @@ export default function RegisterDialog({ open, onClose, activity, onSuccess }) {
     const fee = typeof activity?.registrationFee === "number" ? activity.registrationFee : 0;
     return (fee / 100).toFixed(2);
   }, [activity]);
+  const isFree = !activity?.registrationFee || Number(activity?.registrationFee) === 0;
 
   // capacity math
   const total = Number(activity?.totalSlots ?? 0);
@@ -105,6 +106,14 @@ export default function RegisterDialog({ open, onClose, activity, onSuccess }) {
       const bookingRes = await createBooking(bookingPayload);
       const bookingId = bookingRes?.bookingId;
       if (!bookingId) throw new Error("Booking creation failed: missing bookingId.");
+
+      // Check if backend indicates this is a free event
+      if (isFree || bookingRes?.isFree) {
+        // No payment required, complete registration
+        onClose?.();
+        onSuccess?.(bookingId);
+        return;
+      }
 
       let orderId = bookingRes?.order?.id;
       let amount = bookingRes?.amount;
@@ -238,9 +247,9 @@ export default function RegisterDialog({ open, onClose, activity, onSuccess }) {
               fullWidth
               disabled={disabled}
               helperText={
-                typeof activity?.registrationFee === "number"
-                  ? `₹${inrPrice} per ticket • ${remaining} left • limit ${perUserCap}/user`
-                  : `${remaining} left • limit ${perUserCap}/user`
+                isFree
+                  ? `Free • ${remaining} left • limit ${perUserCap}/user`
+                  : `₹${inrPrice} per ticket • ${remaining} left • limit ${perUserCap}/user}`
               }
             >
               {qtyOptions.map((q) => (
@@ -269,7 +278,11 @@ export default function RegisterDialog({ open, onClose, activity, onSuccess }) {
           }
           startIcon={submitting ? <CircularProgress size={16} /> : null}
         >
-          {submitting ? "Processing..." : "Proceed to Pay"}
+          {submitting
+            ? "Processing..."
+            : isFree
+            ? "Register for Free"
+            : "Proceed to Pay"}
         </Button>
       </DialogActions>
     </Dialog>

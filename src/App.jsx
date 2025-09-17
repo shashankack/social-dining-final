@@ -5,23 +5,25 @@ import { Box, CircularProgress } from "@mui/material";
 
 import ClubDetailPage from "./pages/ClubDetailPage";
 
-// import RequireAuth from "./components/RequireAuth";
 import Navbar from "./components/Navbar";
 
-// Lazy-load your page(s)
 const HomePage = lazy(() => import("./pages/HomePage"));
 
 const EventDetailPage = lazy(() => import("./pages/EventDetailPage"));
-
-// const ThankYouPage = lazy(() => import("./pages/ThankYouPage"));
-// const AccountPage = lazy(() => import("./pages/AccountPage"));
 
 export default function App() {
   return (
     <>
       <Suspense
         fallback={
-          <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              minHeight: "100vh",
+            }}
+          >
             <CircularProgress />
           </Box>
         }
