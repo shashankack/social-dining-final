@@ -120,7 +120,7 @@ export default function EventsSection({ limit = 9 }) {
         No upcoming events
       </Typography>
       <Typography variant="body2" sx={{ opacity: 0.85 }}>
-        All caught up for now. Check back later.
+        Our host is resting. Check back later!🙂
       </Typography>
     </Box>
   );
